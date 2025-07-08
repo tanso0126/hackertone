@@ -21,6 +21,7 @@ const PORT = 3001;
 // --- 데이터 저장소 (파일 기반) ---
 const USERS_FILE = './users.json';
 const PEOPLE_FILE = './people.json';
+const CALLS_FILE = './calls.json'; // New file for persistent calls
 
 const loadData = (filePath, defaultData = []) => {
   try {
@@ -47,7 +48,8 @@ const saveData = (filePath, data) => {
 
 let users = loadData(USERS_FILE);
 let people = loadData(PEOPLE_FILE);
-let activeCalls = {}; // 메모리에서 관리 (휘발성)
+
+let activeCalls = loadData(CALLS_FILE, {}); // Load active calls from file, default to empty object
 let connectedUsers = {}; // 메모리에서 관리 (휘발성)
 
 // 회원가입
@@ -108,14 +110,18 @@ app.get('/people/:id', (req, res) => {
 
 // 호출 요청
 app.post('/call', (req, res) => {
-  const { callerId, targetIds } = req.body;
+  const { callerId, targetIds, reason } = req.body; // reason 추가
   if (!callerId || !Array.isArray(targetIds)) return res.status(400).json({ message: '입력 오류' });
+
   const callId = `call_${Date.now()}`;
-  activeCalls[callId] = { callerId, targetIds, responded: false, acceptedBy: null };
+  activeCalls[callId] = { callerId, targetIds, reason: reason || '', responded: false, acceptedBy: null };
+  saveData(CALLS_FILE, activeCalls); // Save calls to file
+
   targetIds.forEach(tid => {
     const socketId = connectedUsers[tid];
     if (socketId) {
-      io.to(socketId).emit('new-call', { callId, callerId });
+      // reason을 함께 전송
+      io.to(socketId).emit('new-call', { callId, callerId, reason: reason || '' });
     }
   });
   res.json({ message: '호출됨', callId });
@@ -128,6 +134,13 @@ io.on('connection', (socket) => {
   socket.on('register-user-socket', (userId) => {
     connectedUsers[userId] = socket.id;
     console.log(`등록됨: ${userId}`);
+
+    // Send any pending calls to the newly connected user
+    Object.values(activeCalls).forEach(call => {
+      if (call.targetIds.includes(userId) && !call.responded) {
+        io.to(socket.id).emit('new-call', { callId: Object.keys(activeCalls).find(key => activeCalls[key] === call), callerId: call.callerId, reason: call.reason });
+      }
+    });
   });
 
   socket.on('call-response', ({ callId, userId }) => {
@@ -138,6 +151,8 @@ io.on('connection', (socket) => {
     }
     call.responded = true;
     call.acceptedBy = userId;
+    saveData(CALLS_FILE, activeCalls); // Save updated calls to file
+
     const callerSocket = connectedUsers[call.callerId];
     if (callerSocket) {
       io.to(callerSocket).emit('call-accepted', { callId, acceptedBy: userId });
@@ -147,6 +162,23 @@ io.on('connection', (socket) => {
         io.to(connectedUsers[id]).emit('call-closed', { message: '다른 사람이 응답함' });
       }
     });
+  });
+
+  socket.on('call-rejected', ({ callId, userId, reason }) => {
+    const call = activeCalls[callId];
+    if (!call) {
+      console.log(`Call ${callId} not found for rejection.`);
+      return;
+    }
+
+    const callerSocket = connectedUsers[call.callerId];
+    if (callerSocket) {
+      io.to(callerSocket).emit('call-rejected-notification', { callId, rejectedBy: userId, reason: reason || '없음' });
+    }
+
+    // Remove the call from activeCalls after rejection
+    delete activeCalls[callId];
+    saveData(CALLS_FILE, activeCalls);
   });
 
   socket.on('disconnect', () => {

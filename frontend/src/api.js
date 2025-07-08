@@ -57,12 +57,12 @@ export async function update(id, name, tag, description, cost) {
   }
 }
 
-export async function call([callerId, targetId]) {
+export async function call(callerId, targetIds, reason) {
   try {
     const res = await fetch(`${BASE}/call`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ callerId, targetIds: [targetId] }),
+      body: JSON.stringify({ callerId, targetIds, reason }),
     });
     return res.ok;
   } catch {
