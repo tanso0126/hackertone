@@ -1,4 +1,4 @@
-const BASE = "http://localhost:3001";
+const BASE = process.env.REACT_APP_API_BASE_URL || "http://localhost:3001";
 
 export async function login(id, pw) {
   try {
@@ -67,5 +67,18 @@ export async function call(callerId, targetIds, reason) {
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+export async function getStudentActivity(studentId) {
+  try {
+    const res = await fetch(`${BASE}/api/student-activity/${studentId}`);
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    return await res.json();
+  } catch (error) {
+    console.error("Error fetching student activity:", error);
+    return null;
   }
 }

@@ -3,3 +3,57 @@
 @tailwind utilities;
 
 /* 필요하면 여기에 커스텀 스타일 추가 */
+
+.activity-indicator {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  font-size: 0.75em; /* Smaller text */
+  white-space: nowrap;
+}
+
+.activity-circle {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
+.activity-circle.blue {
+  background-color: #3b82f6; /* Tailwind blue-500 */
+}
+
+.activity-circle.gray {
+  background-color: #6b7280; /* Tailwind gray-500 */
+}
+
+.activity-text.blue {
+  color: #3b82f6;
+}
+
+.activity-text.gray {
+  color: #6b7280;
+}
+
+/* New styles for activity tags */
+.activity-tag {
+  font-size: 0.75rem; /* text-xs */
+  font-weight: 600; /* font-semibold */
+  padding: 0.125rem 0.625rem; /* px-2.5 py-0.5 */
+  border-radius: 9999px; /* rounded-full */
+}
+
+.activity-tag.gray-bg {
+  background-color: #e5e7eb; /* gray-200 */
+  color: #4b5563; /* gray-800 */
+}
+
+.activity-tag.sky-bg {
+  background-color: #bae6fd; /* sky-200 */
+  color: #0369a1; /* sky-800 */
+}
+
+.activity-tag.purple-bg {
+  background-color: #e9d5ff; /* purple-200 */
+  color: #7e22ce; /* purple-800 */
+}

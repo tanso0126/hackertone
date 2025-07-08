@@ -8,7 +8,7 @@ import ProfilePage from "./pages/ProfilePage";
 import CallProblemPage from "./pages/CallProblemPage";
 import "./styles.css";
 
-const SOCKET_URL = "http://localhost:3001";
+const SOCKET_URL = "https://localhost:3001";
 
 function App() {
   const [incomingCalls, setIncomingCalls] = useState([]);

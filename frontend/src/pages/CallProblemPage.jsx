@@ -1,23 +1,32 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { allStudent, call } from "../api";
+import { allStudent, call, getStudentActivity } from "../api";
+import { getCurrentPeriodInfo, mapPeriodNameToActivityArrayIndex } from "../utils/timeUtils";
 
 export default function CallProblemPage() {
   const [allPeople, setAllPeople] = useState([]);
   const [filteredPeople, setFilteredPeople] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selected, setSelected] = useState([]);
-  const [reason, setReason] = useState(""); // 호출 이유 state 추가
+  const [reason, setReason] = useState("");
+  const [studentActivities, setStudentActivities] = useState({});
+  const [currentPeriodInfo, setCurrentPeriodInfo] = useState(getCurrentPeriodInfo());
   const navigate = useNavigate();
 
   useEffect(() => {
-    const myId = localStorage.getItem("id"); // Get current user's ID
+    const myId = localStorage.getItem("id");
     allStudent().then((people) => {
       const namedPeople = people.filter(p => p.name);
-      const filteredSelf = namedPeople.filter(p => p.id !== myId); // Filter out self
+      const filteredSelf = namedPeople.filter(p => p.id !== myId);
       setAllPeople(filteredSelf);
       setFilteredPeople(filteredSelf);
     });
+
+    const intervalId = setInterval(() => {
+      setCurrentPeriodInfo(getCurrentPeriodInfo());
+    }, 60 * 1000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   useEffect(() => {
@@ -30,6 +39,23 @@ export default function CallProblemPage() {
     );
     setFilteredPeople(result);
   }, [searchTerm, allPeople]);
+
+  useEffect(() => {
+    const fetchAllStudentActivities = async () => {
+      const activities = {};
+      for (const person of allPeople) {
+        const activity = await getStudentActivity(person.id);
+        if (activity) {
+          activities[person.id] = activity;
+        }
+      }
+      setStudentActivities(activities);
+    };
+
+    if (allPeople.length > 0) {
+      fetchAllStudentActivities();
+    }
+  }, [allPeople]);
 
   const toggleSelection = (id) => {
     setSelected((prev) =>
@@ -47,12 +73,11 @@ export default function CallProblemPage() {
       alert("자기 자신은 호출할 수 없습니다.");
       return;
     }
-    // call 함수에 reason 전달
     const ok = await call(myId, selected, reason);
     if (ok) {
       alert("선택한 학생들을 호출했습니다.");
       setSelected([]);
-      setReason(""); // 호출 후 이유 초기화
+      setReason("");
     } else {
       alert("호출에 실패했습니다.");
     }
@@ -88,31 +113,77 @@ export default function CallProblemPage() {
             ✨ 전체 학생 목록 (클릭하여 선택) ✨
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredPeople.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => toggleSelection(p.id)}
-                className={`p-6 rounded-xl shadow-md cursor-pointer transition-all
-                  ${selected.includes(p.id)
-                    ? "bg-pink-100 border-2 border-pink-500 transform -translate-y-1"
-                    : "bg-white border border-gray-200 hover:shadow-xl hover:-translate-y-1"
-                  }`}
-              >
-                <div className="font-bold text-lg text-pink-500">
-                  {p.name} ({p.id})
-                </div>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {p.tag?.map(t => 
-                    <span key={t} className="bg-pink-100 text-pink-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-                      {t}
-                    </span>
+            {filteredPeople.map((p) => {
+              const studentActivity = studentActivities[p.id];
+              const activityArrayIndex = mapPeriodNameToActivityArrayIndex(currentPeriodInfo.periodName);
+              const currentActivityValue = (studentActivity && activityArrayIndex !== null && studentActivity.length > activityArrayIndex)
+                ? studentActivity[activityArrayIndex]
+                : null;
+
+              let activityDisplayText = null;
+              let activityBgClass = null;
+
+              if (currentActivityValue === '이') {
+                activityDisplayText = '이석';
+                activityBgClass = 'activity-tag gray-bg';
+              } else if (currentActivityValue === '컴') {
+                activityDisplayText = '컴이석';
+                activityBgClass = 'activity-tag sky-bg';
+              } else if (currentActivityValue === '박') {
+                activityDisplayText = '외박';
+                activityBgClass = 'activity-tag purple-bg';
+              } else if (currentActivityValue) {
+                activityDisplayText = currentActivityValue;
+                activityBgClass = 'activity-tag gray-bg';
+              }
+
+              const isKom = currentActivityValue === '컴';
+              const isYi = currentActivityValue === '이';
+
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => toggleSelection(p.id)}
+                  className={`p-6 rounded-xl shadow-md cursor-pointer transition-all
+                    ${selected.includes(p.id)
+                      ? "bg-pink-100 border-2 border-pink-500 transform -translate-y-1"
+                      : "bg-white border border-gray-200 hover:shadow-xl hover:-translate-y-1"
+                    }`}
+                >
+                  <div className="font-bold text-lg text-pink-500 flex items-center">
+                    {p.name} ({p.id})
+                    {isKom && (
+                      <span className="activity-indicator">
+                        <span className="activity-circle blue"></span>
+                        <span className="activity-text blue">컴이석</span>
+                      </span>
+                    )}
+                    {isYi && (
+                      <span className="activity-indicator">
+                        <span className="activity-circle gray"></span>
+                        <span className="activity-text gray">이석</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {p.tag?.map(t =>
+                      <span key={t} className="bg-pink-100 text-pink-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                        {t}
+                      </span>
+                    )}
+                  </div>
+                  {activityDisplayText && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <span className={activityBgClass}>
+                        {activityDisplayText}
+                      </span>
+                    </div>
                   )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-          
-          {/* 호출 이유 입력란 */}
+
           <textarea
             className="w-full h-24 p-4 mt-8 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400"
             placeholder="호출하는 이유를 간단하게 적어주세요. (선택 사항)"
