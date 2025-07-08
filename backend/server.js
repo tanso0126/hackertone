@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
 const cors = require('cors');
+const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,19 +18,50 @@ app.use(express.json());
 
 const PORT = 3001;
 
-// 데이터 저장소
-let users = [];       // { id, password }
-let people = [];      // { id, name, tag[], description, cost }
-let activeCalls = {}; // callId: { callerId, targetIds, responded, acceptedBy }
-let connectedUsers = {}; // id -> socketId
+// --- 데이터 저장소 (파일 기반) ---
+const USERS_FILE = './users.json';
+const PEOPLE_FILE = './people.json';
+
+const loadData = (filePath, defaultData = []) => {
+  try {
+    if (fs.existsSync(filePath)) {
+      const data = fs.readFileSync(filePath, 'utf8');
+      return JSON.parse(data);
+    } else {
+      fs.writeFileSync(filePath, JSON.stringify(defaultData, null, 2));
+      return defaultData;
+    }
+  } catch (error) {
+    console.error(`Error loading ${filePath}:`, error);
+    return defaultData;
+  }
+};
+
+const saveData = (filePath, data) => {
+  try {
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+  } catch (error) {
+    console.error(`Error saving ${filePath}:`, error);
+  }
+};
+
+let users = loadData(USERS_FILE);
+let people = loadData(PEOPLE_FILE);
+let activeCalls = {}; // 메모리에서 관리 (휘발성)
+let connectedUsers = {}; // 메모리에서 관리 (휘발성)
 
 // 회원가입
 app.post('/signup', (req, res) => {
   const { id, password } = req.body;
   if (!id || !password) return res.status(400).json({ message: '필수 값 없음' });
   if (users.find(u => u.id === id)) return res.status(409).json({ message: '이미 존재' });
+  
   users.push({ id, password });
   people.push({ id, name: '', tag: [], description: '', cost: '' });
+  
+  saveData(USERS_FILE, users);
+  saveData(PEOPLE_FILE, people);
+  
   res.status(201).json({ message: '가입됨' });
 });
 
@@ -41,32 +73,37 @@ app.post('/login', (req, res) => {
   res.status(200).json({ message: '로그인 성공', user: { id } });
 });
 
-// 프로필 등록
-app.post('/register', (req, res) => {
-  const { id, name, tag, description, cost } = req.body;
-  const person = people.find(p => p.id === id);
-  if (!person) return res.status(404).json({ message: '가입 안됨' });
-  if (person.name) return res.status(409).json({ message: '이미 등록됨' });
-  Object.assign(person, { name, tag, description, cost });
-  res.status(201).json({ message: '등록됨', person });
-});
-
 // 프로필 수정
 app.put('/people/:id', (req, res) => {
   const { id } = req.params;
   const { name, tag, description, cost } = req.body;
-  const person = people.find(p => p.id === id);
-  if (!person) return res.status(404).json({ message: '없음' });
+  const personIndex = people.findIndex(p => p.id === id);
+
+  if (personIndex === -1) return res.status(404).json({ message: '없음' });
+
+  const person = people[personIndex];
   if (name) person.name = name;
   if (tag) person.tag = tag;
   if (description) person.description = description;
   if (cost) person.cost = cost;
+  
+  people[personIndex] = person;
+  saveData(PEOPLE_FILE, people);
+
   res.json({ message: '수정 완료', person });
 });
 
 // 학생 목록 조회
 app.get('/people', (req, res) => {
   res.json(people);
+});
+
+// 특정 학생 정보 조회
+app.get('/people/:id', (req, res) => {
+  const { id } = req.params;
+  const person = people.find(p => p.id === id);
+  if (!person) return res.status(404).json({ message: '없음' });
+  res.json(person);
 });
 
 // 호출 요청

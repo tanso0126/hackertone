@@ -35,6 +35,15 @@ export async function allStudent() {
   }
 }
 
+export async function getStudent(id) {
+  try {
+    const res = await fetch(`${BASE}/people/${id}`);
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function update(id, name, tag, description, cost) {
   try {
     const res = await fetch(`${BASE}/people/${id}`, {

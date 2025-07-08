@@ -11,22 +11,42 @@ export default function HomePage() {
   }, []);
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold">학생 목록</h1>
-        <div className="flex gap-2">
-          <button className="btn" onClick={() => navigate("/profile")}>내 프로필</button>
-          <button className="btn" onClick={() => navigate("/call")}>문제 발생</button>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-4">
-        {people.map((p) => (
-          <div key={p.id} className="border p-4 rounded shadow-sm">
-            <div className="font-bold">{p.name || "(이름 없음)"} ({p.id})</div>
-            <div className="text-sm text-gray-700">{p.description}</div>
-            <div className="text-xs text-gray-500">{p.tag?.join(", ")}</div>
+    <div className="min-h-screen bg-gray-100 p-4 sm:p-6 md:p-8">
+      <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-lg p-6 sm:p-8">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-8">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-4 sm:mb-0">
+            학생 목록
+          </h1>
+          <div className="flex gap-4">
+            <button 
+              className="bg-pink-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-pink-600 active:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75 transition-all duration-300 ease-in-out transform hover:scale-105"
+              onClick={() => navigate("/profile")}
+            >
+              내 프로필
+            </button>
+            <button 
+              className="bg-indigo-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-600 active:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition-all duration-300 ease-in-out transform hover:scale-105"
+              onClick={() => navigate("/call")}
+            >
+              문제 해결사 호출
+            </button>
           </div>
-        ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {people.map((p) => (
+            <div key={p.id} className="bg-white border border-gray-200 p-6 rounded-xl shadow-md hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 ease-in-out">
+              <div className="font-bold text-lg text-pink-500">{p.name || "(이름 없음)"} ({p.id})</div>
+              <p className="text-sm text-gray-600 mt-2 mb-4">{p.description}</p>
+              <div className="flex flex-wrap gap-2">
+                {p.tag?.map(t => 
+                  <span key={t} className="bg-pink-100 text-pink-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                    {t}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
